@@ -169,6 +169,7 @@ class MainMenu(QWidget):
         super().__init__()
         self.windows = {}  # Словарь для хранения ссылок на окна
         self.initUI()
+        self.update_revenue()
     
     def initUI(self):
         self.setWindowTitle("Маркетплейс")
@@ -176,6 +177,10 @@ class MainMenu(QWidget):
         
         title_label = QLabel("<h1>Добро пожаловать!</h1>")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                
+        revenue_label = QLabel(f"<b>Доход маркетплейса составил уже:</b> {self.get_total_revenue():,.2f} руб!")
+        revenue_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         login_button = QPushButton("Войти")
         login_button.clicked.connect(self.openLoginWindow)
@@ -184,6 +189,7 @@ class MainMenu(QWidget):
         registration_button.clicked.connect(self.openRegistrationWindow)
 
         layout.addWidget(title_label)
+        layout.addWidget(revenue_label)
         layout.addStretch()
         layout.addWidget(login_button)
         layout.addWidget(registration_button)
@@ -191,6 +197,30 @@ class MainMenu(QWidget):
         
         self.setLayout(layout)
 
+    def update_revenue(self):
+        total_revenue = self.get_total_revenue()
+        for widget in self.children():
+            if isinstance(widget, QLabel) and "<b>Доход маркетплейса:" in widget.text():
+                widget.setText(f"<b>Доход маркетплейса:</b> {total_revenue:,.2f} руб.")
+
+    def get_total_revenue(self):
+        comission = 0.006
+        try:
+            conn = sqlite3.connect('marketplace.db')
+            c = conn.cursor()
+            
+            # Вычислим общую сумму продаж и применим процент комиссии
+            c.execute("""
+                SELECT SUM(sale_price * sold_quantity) FROM sales
+            """)
+            result = c.fetchone()[0]
+            return round(result * comission, 2) if result else 0.0
+        except Exception as e:
+            print(e)
+            return 0.0
+        finally:
+            conn.close()
+    
     def openLoginWindow(self):
         if 'login' not in self.windows:
             self.windows['login'] = LoginWindow(self)
@@ -205,6 +235,7 @@ class MainMenu(QWidget):
 
     def showAgain(self):
         self.show()
+        self.update_revenue()
 
 class LoginWindow(QWidget):
     def __init__(self, parent=None):
@@ -551,7 +582,7 @@ class BuyerDashboard(QWidget):
 
     def logout(self):
         # Возврат на главное окно (не создается новое окно)
-        self.main_menu.show()
+        self.main_menu.showAgain()
         self.hide()
 
 class ReviewManagementWindow(QDialog):
@@ -1469,7 +1500,7 @@ class SellerDashboard(QWidget):
 
     def logout(self):
         # Возврат на главное окно (не создается новое окно)
-        self.main_menu.show()
+        self.main_menu.showAgain()
         self.hide()
     def show_sales_history(self):
         # Открываем окно истории продаж
@@ -2307,7 +2338,7 @@ class RegistrationWindow(QWidget):
         self.txt_password.clear()
 
         # Возвращаемся на главное окно
-        self.parent.show()
+        self.parent.showAgain()
         self.hide()
 
         
@@ -2322,4 +2353,3 @@ if __name__ == "__main__":
     main_menu.show()
 
     sys.exit(app.exec())
-
