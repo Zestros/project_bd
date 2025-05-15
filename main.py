@@ -1544,30 +1544,41 @@ class SalesHistoryWindow(QDialog):
         conn = sqlite3.connect('marketplace.db')
         cursor = conn.cursor()
 
-        # Запрос на получение истории продаж продавца
-        cursor.execute(""" SELECT s.id, p.title, s.sold_quantity, s.sale_price, s.sale_date, s.sale_price * s.sold_quantity AS
-            revenue FROM sales s JOIN products p ON s.product_id = p.id WHERE p.seller_id = ? ORDER BY s.sale_date DESC """, (self.seller_id,))
+        # Получаем историю продаж текущего продавца
+        cursor.execute(
+            """SELECT s.id, p.title, s.sold_quantity, s.sale_price, s.sale_date, s.sale_price * s.sold_quantity AS revenue
+               FROM sales s JOIN products p ON s.product_id = p.id
+               WHERE p.seller_id = ?
+               ORDER BY s.sale_date DESC""",
+            (self.seller_id,)
+        )
 
         sales = cursor.fetchall()
         conn.close()
 
-        # Обновляем таблицу результатов
+        # Настраиваем количество строк в таблице
         self.sales_table.setRowCount(len(sales))
+
+        # Перебираем каждую продажу и добавляем её данные в таблицу
         for row_idx, sale in enumerate(sales):
             sale_id, product_title, sold_qty, sale_price, sale_date_str, revenue = sale
+
+            # Применяем комиссию
+            adjusted_revenue = float(revenue) * 0.994
 
             # Форматируем дату продажи
             sale_date = datetime.strptime(sale_date_str, "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d %H:%M")
 
             columns = [
-                str(sale_id),           
+                str(sale_id),       
                 product_title,         
                 str(sold_qty),          
                 f"{sale_price:.2f} ₽",  
-                sale_date,              
-                f"{revenue:.2f} ₽"     
+                sale_date,             
+                f"{adjusted_revenue:.2f} ₽"     
             ]
 
+            # Заполняем ячейки таблицы
             for col_idx, value in enumerate(columns):
                 item = QTableWidgetItem(str(value))
                 self.sales_table.setItem(row_idx, col_idx, item)
